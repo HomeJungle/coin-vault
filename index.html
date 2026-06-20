@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Vault — secured idle clicker</title>
+<style>
+  :root{
+    --bg:#FAF8F3;
+    --panel:#FFFFFF;
+    --ink:#2C2C2A;
+    --ink-soft:#5F5E5A;
+    --ink-faint:#8A8678;
+    --line:#E3E0D6;
+    --teal-50:#E1F5EE; --teal-200:#5DCAA5; --teal-600:#0F6E56; --teal-800:#085041; --teal-900:#04342C;
+    --amber-50:#FAEEDA; --amber-200:#EF9F27; --amber-600:#854F0B; --amber-800:#633806; --amber-900:#412402;
+    --red-50:#FCEBEB; --red-200:#F09595; --red-600:#A32D2D; --red-800:#791F1F;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --serif: 'Source Serif Pro', Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    min-height:100vh; padding:32px 20px;
+  }
+  .wrap{max-width:1040px; margin:0 auto;}
+
+  .masthead{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px; flex-wrap:wrap; gap:10px;
+  }
+  .masthead h1{font-family:var(--serif); font-weight:700; font-size:30px; margin:0; letter-spacing:-0.5px;}
+  .masthead .sub{font-size:12px; color:var(--ink-soft); font-family:var(--mono); margin-top:4px;}
+  .security-badge{
+    font-family:var(--mono); font-size:11px; padding:6px 12px; border-radius:6px;
+    background:var(--teal-50); color:var(--teal-800); border:1px solid var(--teal-200);
+    display:flex; align-items:center; gap:6px;
+  }
+  .security-badge.tampered{background:var(--red-50); color:var(--red-800); border-color:var(--red-200);}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--teal-600); display:inline-block;}
+  .tampered .dot{background:var(--red-600);}
+
+  .masthead-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .mh-btn-group{display:flex; gap:6px;}
+  .mh-btn{
+    width:34px; height:34px; border-radius:7px; border:1.5px solid var(--ink); background:var(--panel);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--ink);
+  }
+  .mh-btn:hover{background:var(--bg);}
+
+  .popover{
+    background:var(--panel); border:1.5px solid var(--ink); border-radius:10px; padding:16px 20px;
+    margin-bottom:18px;
+  }
+  .popover-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .popover-head h3{font-family:var(--serif); font-size:16px; margin:0;}
+  .popover-close{
+    width:26px; height:26px; border-radius:6px; border:1px solid var(--line); background:var(--panel);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:13px;
+  }
+  .popover-close:hover{background:var(--bg);}
+
+  .setting-row{
+    display:flex; justify-content:space-between; align-items:center; gap:16px; padding:11px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .setting-row:last-child{border-bottom:none;}
+  .setting-name{font-size:13px; font-weight:600;}
+  .setting-desc{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .switch{position:relative; display:inline-block; width:38px; height:22px; flex-shrink:0;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider{
+    position:absolute; inset:0; background:var(--line); border-radius:22px; cursor:pointer; transition:background 0.15s;
+  }
+  .slider::before{
+    content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff;
+    border-radius:50%; transition:transform 0.15s; box-shadow:0 0 0 1px rgba(0,0,0,0.08);
+  }
+  .switch input:checked + .slider{background:var(--teal-600);}
+  .switch input:checked + .slider::before{transform:translateX(16px);}
+
+  .danger-btn{
+    font-family:var(--mono); font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:6px;
+    border:1.5px solid var(--red-600); color:var(--red-800); background:var(--red-50); cursor:pointer;
+  }
+  .danger-btn:hover{background:var(--red-200);}
+
+  .secondary-btn{
+    font-family:var(--mono); font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:6px;
+    border:1.5px solid var(--ink); color:var(--ink); background:var(--panel); cursor:pointer; white-space:nowrap;
+  }
+  .secondary-btn:hover{background:var(--bg);}
+  .secondary-btn:disabled{opacity:0.4; cursor:not-allowed;}
+
+  .volume-row{align-items:center;}
+  .volume-slider{
+    width:140px; accent-color:var(--teal-600); cursor:pointer;
+  }
+
+  .confirm-overlay{
+    position:fixed; inset:0; background:rgba(20,18,16,0.55); display:flex;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .confirm-overlay[hidden]{display:none;}
+  .confirm-box{
+    background:var(--panel); border:1.5px solid var(--ink); border-radius:10px; padding:22px;
+    max-width:340px; width:100%;
+  }
+  .confirm-title{font-family:var(--serif); font-size:17px; font-weight:700; margin-bottom:8px;}
+  .confirm-text{font-size:13px; color:var(--ink-soft); line-height:1.55; margin-bottom:18px;}
+  .confirm-actions{display:flex; gap:10px;}
+  .confirm-actions button{flex:1;}
+
+  .stats-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .stat-card{
+    border:1.5px solid var(--line); border-radius:8px; padding:12px 14px; background:var(--bg);
+  }
+  .stat-card .stat-card-label{font-family:var(--mono); font-size:10px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.5px;}
+  .stat-card .stat-card-value{font-family:var(--serif); font-size:19px; font-weight:700; margin-top:3px;}
+
+  .credits-text{font-size:13px; line-height:1.6; color:var(--ink-soft); margin:0 0 10px;}
+  .credits-text:last-child{margin-bottom:0;}
+
+  /* --- sacrifice page theme: purple night sky, sun in the corner --- */
+  #popover-sacrifice{
+    position:relative; overflow:hidden; border-color:#2A1B4D; color:#EDE7FA;
+    background:
+      radial-gradient(circle at 92% 6%, #FFE9A8 0%, #FFD15C 7%, rgba(255,209,92,0.25) 16%, transparent 32%),
+      radial-gradient(1.5px 1.5px at 8% 18%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 22% 8%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 35% 28%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 48% 12%, #fff 100%, transparent),
+      radial-gradient(2px 2px at 15% 45%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 60% 22%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 73% 38%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 28% 62%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 5% 72%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 50% 80%, #fff 100%, transparent),
+      radial-gradient(2px 2px at 85% 65%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 65% 88%, #fff 100%, transparent),
+      radial-gradient(1.5px 1.5px at 92% 85%, #fff 100%, transparent),
+      radial-gradient(1px 1px at 40% 95%, #fff 100%, transparent),
+      linear-gradient(160deg, #1B0F38 0%, #2A1659 45%, #3A1E68 75%, #2A1659 100%);
+  }
+  #popover-sacrifice .popover-head h3{color:#F3EEFF;}
+  #popover-sacrifice .popover-close{background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.25); color:#EDE7FA;}
+  #popover-sacrifice .popover-close:hover{background:rgba(255,255,255,0.18);}
+  #popover-sacrifice .sacrifice-desc{color:#C9BEEC; text-shadow:0 1px 3px rgba(0,0,0,0.4); position:relative; z-index:1;}
+  #popover-sacrifice .sac-node{background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.18);}
+  #popover-sacrifice .sac-node .sac-pct{color:#A99AD6;}
+  #popover-sacrifice .sac-node.claimed{background:rgba(255,209,92,0.18); border-color:#FFD15C; color:#FFE9A8;}
+  #popover-sacrifice .sac-node.current{background:rgba(168,77,230,0.25); border-color:#C77DFF; color:#F3EEFF;}
+  #popover-sacrifice .sac-node.locked{opacity:0.4;}
+  #popover-sacrifice .sacrifice-status{color:#C9BEEC;}
+
+  .sacrifice-desc{font-size:13px; line-height:1.6; color:var(--ink-soft); margin:0 0 14px;}
+  .sacrifice-track{display:flex; gap:6px; margin-bottom:14px;}
+  .sac-node{
+    flex:1; border-radius:8px; padding:10px 6px; text-align:center; font-family:var(--mono);
+    border:1.5px solid var(--line); background:var(--bg);
+  }
+  .sac-node .sac-cost{font-size:11px; font-weight:700;}
+  .sac-node .sac-pct{font-size:9.5px; color:var(--ink-faint); margin-top:2px;}
+  .sac-node.claimed{background:var(--amber-50); border-color:var(--amber-200); color:var(--amber-800);}
+  .sac-node.current{background:var(--red-50); border-color:var(--red-600); color:var(--red-800); border-style:solid;}
+  .sac-node.locked{opacity:0.45;}
+
+  .sacrifice-status{font-size:12.5px; color:var(--ink-soft); margin-bottom:12px; text-align:center;}
+  .sacrifice-btn{
+    width:100%; font-family:var(--mono); font-size:13px; font-weight:700; padding:10px; border-radius:8px;
+    border:1.5px solid var(--red-600); color:#fff; background:var(--red-600); cursor:pointer;
+  }
+  .sacrifice-btn:disabled{opacity:0.4; cursor:not-allowed; background:var(--ink-faint); border-color:var(--ink-faint);}
+  .sacrifice-btn:not(:disabled):hover{background:var(--red-800); border-color:var(--red-800);}
+
+
+  .stage{display:flex; justify-content:center;}
+  .game-panel{max-width:320px; width:100%;}
+
+  .panel{background:var(--panel); border:1.5px solid var(--ink); border-radius:10px; padding:20px;}
+
+  /* --- clicker panel --- */
+  .game-panel{text-align:center;}
+  .balance-label{font-family:var(--mono); font-size:11px; letter-spacing:1px; color:var(--ink-soft); text-transform:uppercase;}
+  .balance{font-family:var(--serif); font-size:48px; font-weight:700; margin:4px 0 4px; line-height:1;}
+  .balance.flash{animation:flash 0.35s ease;}
+  @keyframes flash{0%{transform:scale(1.12);} 100%{transform:scale(1);}}
+  .rate{font-size:12px; color:var(--ink-soft); margin-bottom:16px; font-family:var(--mono);}
+  .coin-target{
+    width:120px; height:120px; margin:0 auto 14px; border-radius:50%;
+    background:var(--teal-50); border:2.5px dashed var(--teal-200);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:42px; user-select:none; transition:transform 0.1s;
+  }
+  .coin-target:active{transform:scale(0.92);}
+  .click-power{font-size:12px; color:var(--ink-soft);}
+  .stat-row{display:flex; justify-content:space-between; font-size:12px; color:var(--ink-soft); margin-top:14px; padding-top:12px; border-top:1px solid var(--line);}
+  .stat-row b{color:var(--ink); font-weight:600;}
+
+  /* --- upgrade tree --- */
+  .shop h2{font-family:var(--serif); font-size:17px; margin:0 0 4px;}
+  .shop-sub{font-size:11px; color:var(--ink-soft); margin-bottom:12px;}
+  .lane-headers{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px;}
+  .lane-headers div{font-family:var(--mono); font-size:10px; letter-spacing:0.5px; color:var(--ink-faint); text-transform:uppercase; text-align:center;}
+
+  .tree-tier{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .tree-connector{display:grid; grid-template-columns:1fr 1fr; gap:10px; height:14px;}
+  .conn-line{width:1.5px; background:var(--line); margin:0 auto;}
+
+  .tree-node{
+    border:1.5px solid var(--ink); border-radius:8px; padding:10px; background:var(--panel);
+    display:flex; flex-direction:column; gap:6px; min-height:108px;
+  }
+  .tree-node.lane-click{border-top:3px solid var(--amber-200);}
+  .tree-node.lane-auto{border-top:3px solid var(--teal-200);}
+  .tree-node.locked{opacity:0.55; background:var(--bg); border-style:dashed;}
+  .node-icon{font-size:20px; line-height:1;}
+  .tree-node.locked .node-icon{color:var(--ink-faint); font-size:16px;}
+  .node-body{flex:1;}
+  .node-name{font-size:12.5px; font-weight:600;}
+  .node-desc{font-size:10.5px; color:var(--ink-soft); margin-top:2px; line-height:1.4;}
+  .owned-tag{font-size:9px; color:var(--teal-800); font-family:var(--mono);}
+  .node-buy{
+    font-family:var(--mono); font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:6px;
+    border:1.5px solid var(--ink); background:var(--panel); cursor:pointer; align-self:stretch;
+  }
+  .node-buy:disabled{opacity:0.35; cursor:not-allowed;}
+  .node-buy:not(:disabled):hover{background:var(--teal-50); border-color:var(--teal-600);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>🪙 Coin Vault</h1>
+      <div class="sub">idle clicker</div>
+    </div>
+    <div class="masthead-right">
+      <div class="security-badge" id="security-badge"><span class="dot"></span><span id="security-text">✅ verified</span></div>
+      <div class="mh-btn-group">
+        <button class="mh-btn" id="btn-tree" aria-label="Upgrade tree">🌳</button>
+        <button class="mh-btn" id="btn-sacrifice" aria-label="Sacrifice">🔥</button>
+        <button class="mh-btn" id="btn-stats" aria-label="Stats">📊</button>
+        <button class="mh-btn" id="btn-settings" aria-label="Settings">⚙️</button>
+        <button class="mh-btn" id="btn-credits" aria-label="Credits">ℹ️</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="popover" id="popover-settings" hidden>
+    <div class="popover-head">
+      <h3>⚙️ Settings</h3>
+      <button class="popover-close" data-close aria-label="Close">✕</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-name">🔊 Click sound</div>
+        <div class="setting-desc">Plays a tick on each click</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="toggle-sound"><span class="slider"></span></label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-name">🎵 Background music</div>
+        <div class="setting-desc">Soft ambient loop while you play</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="toggle-music"><span class="slider"></span></label>
+    </div>
+    <div class="setting-row volume-row">
+      <div class="setting-name">🎚️ Music volume</div>
+      <input type="range" id="music-volume" min="0" max="100" value="40" class="volume-slider">
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-name">💾 Auto-save</div>
+        <div class="setting-desc">Saves automatically on click, purchase, and sacrifice</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="toggle-autosave" checked><span class="slider"></span></label>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-name">💾 Manual save</div>
+        <div class="setting-desc" id="save-status">No save yet</div>
+      </div>
+      <button class="secondary-btn" id="btn-save-now">Save now</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-name">🔁 Refresh page</div>
+        <div class="setting-desc">Reloads the page — your save will restore automatically</div>
+      </div>
+      <button class="secondary-btn" id="btn-refresh">Refresh</button>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div class="setting-name">🔄 Reset progress</div>
+        <div class="setting-desc">Wipes coins, upgrades, and your save file — cannot be undone</div>
+      </div>
+      <button class="danger-btn" id="btn-reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="confirm-overlay" id="confirm-overlay" hidden>
+    <div class="confirm-box">
+      <div class="confirm-title" id="confirm-title">Are you sure?</div>
+      <div class="confirm-text" id="confirm-text"></div>
+      <div class="confirm-actions">
+        <button class="secondary-btn" id="confirm-cancel">Cancel</button>
+        <button class="danger-btn" id="confirm-ok">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="popover" id="popover-stats" hidden>
+    <div class="popover-head">
+      <h3>📊 Stats</h3>
+      <button class="popover-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="stats-grid" id="stats-grid"></div>
+  </div>
+
+  <div class="popover" id="popover-credits" hidden>
+    <div class="popover-head">
+      <h3>✨ Credits</h3>
+      <button class="popover-close" data-close aria-label="Close">✕</button>
+    </div>
+    <p class="credits-text">🪙 Coin Vault — a small idle clicker built as a learning project.</p>
+  </div>
+
+  <div class="popover" id="popover-tree" hidden>
+    <div class="popover-head">
+      <h3>🌳 Upgrade tree</h3>
+      <button class="popover-close" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="lane-headers"><div>👆 Click path</div><div>⚙️ Auto path</div></div>
+    <div id="upgrade-list"></div>
+  </div>
+
+  <div class="popover" id="popover-sacrifice" hidden>
+    <div class="popover-head">
+      <h3>🔥 Sacrifice</h3>
+      <button class="popover-close" data-close aria-label="Close">✕</button>
+    </div>
+    <p class="sacrifice-desc">Burn everything — coins and upgrades reset to zero — in exchange for a permanent +5% click boost that survives forever. Each sacrifice costs more than the last.</p>
+    <div class="sacrifice-track" id="sacrifice-track"></div>
+    <div class="sacrifice-status" id="sacrifice-status"></div>
+    <button class="sacrifice-btn" id="btn-sacrifice-confirm">Sacrifice</button>
+  </div>
+
+  <div class="stage">
+    <div class="panel game-panel">
+      <div class="balance-label">🪙 your coins</div>
+      <div class="balance" id="balance">0</div>
+      <div class="rate" id="rate">⚙️ +0/sec idle</div>
+      <div class="coin-target" id="coin-btn">🪙</div>
+      <div class="click-power" id="click-power">👆 +1 per click</div>
+      <div class="stat-row"><span>💰 Total earned</span><b id="total-earned">0</b></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+// =====================================================================
+// SERVER MODULE
+// In a real product this entire block runs on a backend the client can
+// never read or write to directly. Here it's isolated via closure so the
+// "client" code below can only talk to it through postMessage-style
+// intents — it cannot reach into serverState, signingKey, or seq directly.
+// =====================================================================
+const Server = (function(){
+  let signingKey = null; // CryptoKey, never exposed
+  let seq = 0;
+  let lastSeq = -1;
+
+  let state = {
+    coins: 0,
+    totalEarned: 0,
+    clickPower: 1,
+    autoRate: 0,
+    owned: {}, // upgradeId -> count
+    actionsVerified: 0,
+  };
+
+  // Sacrifice / rebirth — lives outside `state` so it survives a sacrifice's
+  // own reset of state. Only the hard settings "Reset progress" wipes this.
+  const SACRIFICE_THRESHOLDS = [10000, 25000, 50000, 100000, 250000];
+  let sacrificeCount = 0; // how many times used so far (0..5)
+  let sacrificeBoost = 0; // additive fraction, e.g. 0.15 = +15%
+
+  // Lifetime stats — survive sacrifices too, only a hard reset clears these.
+  let lifetimeEarned = 0;
+  let lifetimeClicks = 0;
+  let lifetimePurchases = 0;
+  let sessionStartedAt = Date.now();
+
+  function effectiveClickPower(){
+    return Math.round(state.clickPower * (1 + sacrificeBoost));
+  }
+
+  function nextSacrificeThreshold(){
+    return sacrificeCount < SACRIFICE_THRESHOLDS.length ? SACRIFICE_THRESHOLDS[sacrificeCount] : null;
+  }
+
+  const UPGRADES = {
+    steady_hands:  { name:'Steady hands',     icon:'👆', kind:'click', power:1,    baseCost:15,      desc:'+1 coin per click',    tier:1, requires:null },
+    apprentice:    { name:'Apprentice miner', icon:'⛏️', kind:'auto',  power:1,    baseCost:50,      desc:'+1 coin/sec',          tier:1, requires:null },
+    lucky_coin:    { name:'Lucky coin',       icon:'🍀', kind:'click', power:2,    baseCost:100,     desc:'+2 coins per click',   tier:2, requires:'steady_hands' },
+    mining_rig:    { name:'Mining rig',       icon:'⚙️', kind:'auto',  power:5,    baseCost:1000,    desc:'+5 coins/sec',         tier:2, requires:'apprentice' },
+    coin_press:    { name:'Coin press',       icon:'🏭', kind:'click', power:5,    baseCost:500,     desc:'+5 coins per click',   tier:3, requires:'lucky_coin' },
+    vault_engine:  { name:'Vault engine',     icon:'🔧', kind:'auto',  power:20,   baseCost:5000,    desc:'+20 coins/sec',        tier:3, requires:'mining_rig' },
+    midas_touch:   { name:'Midas touch',      icon:'✨', kind:'click', power:25,   baseCost:10000,   desc:'+25 coins per click',  tier:4, requires:'coin_press' },
+    treasury_core: { name:'Treasury core',    icon:'🏛️', kind:'auto',  power:100,  baseCost:50000,   desc:'+100 coins/sec',       tier:4, requires:'vault_engine' },
+    gilded_fist:   { name:'Gilded fist',      icon:'🥊', kind:'click', power:100,  baseCost:100000,  desc:'+100 coins per click', tier:5, requires:'midas_touch' },
+    coin_foundry:  { name:'Coin foundry',     icon:'🏗️', kind:'auto',  power:400,  baseCost:250000,  desc:'+400 coins/sec',       tier:5, requires:'treasury_core' },
+    dragons_hoard: { name:"Dragon's hoard",   icon:'🐉', kind:'click', power:400,  baseCost:750000,  desc:'+400 coins per click', tier:6, requires:'gilded_fist' },
+    coin_reactor:  { name:'Coin reactor',     icon:'☢️', kind:'auto',  power:1500, baseCost:1500000, desc:'+1,500 coins/sec',     tier:6, requires:'coin_foundry' },
+    kings_seal:    { name:"King's seal",      icon:'👑', kind:'click', power:1500, baseCost:4000000, desc:'+1,500 coins per click', tier:7, requires:'dragons_hoard' },
+    singularity:   { name:'Singularity vault',icon:'🌀', kind:'auto',  power:6000, baseCost:8000000, desc:'+6,000 coins/sec',     tier:7, requires:'coin_reactor' },
+  };
+
+  function isUnlocked(id){
+    const u = UPGRADES[id];
+    if(!u.requires) return true;
+    return (state.owned[u.requires] || 0) > 0;
+  }
+
+  function upgradeCost(id){
+    const u = UPGRADES[id];
+    const owned = state.owned[id] || 0;
+    return Math.round(u.baseCost * Math.pow(1.15, owned));
+  }
+
+  async function getKey(){
+    if(signingKey) return signingKey;
+    // Derived (not random) so a signature made before a refresh can still be
+    // verified after one — this is what lets a save file be trusted on load.
+    // The key material itself is still never exposed outside this closure.
+    const seedBytes = new TextEncoder().encode('coin-vault-local-save-v1');
+    signingKey = await crypto.subtle.importKey(
+      'raw', seedBytes, { name:'HMAC', hash:'SHA-256' }, false, ['sign','verify']
+    );
+    return signingKey;
+  }
+
+  async function signState(){
+    const key = await getKey();
+    seq += 1;
+    const payload = JSON.stringify({
+      coins: state.coins,
+      totalEarned: state.totalEarned,
+      clickPower: state.clickPower,
+      autoRate: state.autoRate,
+      owned: state.owned,
+      seq,
+      t: Date.now(),
+    });
+    const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+    const sig = Array.from(new Uint8Array(sigBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+    lastSeq = seq;
+    return { payload: JSON.parse(payload), sig };
+  }
+
+  async function verifySig(payloadObj, claimedSig){
+    // Recompute independently and compare — a true verify, not string-equality theater.
+    const key = await getKey();
+    const payload = JSON.stringify(payloadObj);
+    const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+    const sig = Array.from(new Uint8Array(sigBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+    return sig === claimedSig;
+  }
+
+  let lastActionAt = 0;
+  const MIN_MS_BETWEEN_CLICKS = 90;
+
+  async function handleIntent(intent){
+    const now = performance.now();
+
+    if(intent.type === 'click'){
+      if(now - lastActionAt < MIN_MS_BETWEEN_CLICKS){
+        return { ok:false, reason:'rate_limit', detail:'click rejected — faster than physically possible (anti-bot)' };
+      }
+      lastActionAt = now;
+      const gain = effectiveClickPower();
+      state.coins += gain;
+      state.totalEarned += gain;
+      state.actionsVerified += 1;
+      lifetimeEarned += gain;
+      lifetimeClicks += 1;
+      const signed = await signState();
+      return { ok:true, reason:'click_verified', detail:'+' + gain + ' coins, server total ' + state.coins, signed };
+    }
+
+    if(intent.type === 'tick'){
+      // idle income — server computes this itself based on elapsed time, never trusts a client-claimed amount
+      const elapsedSec = intent.elapsedSec;
+      const earned = Math.round(state.autoRate * elapsedSec);
+      if(earned > 0){
+        state.coins += earned;
+        state.totalEarned += earned;
+        lifetimeEarned += earned;
+      }
+      const signed = await signState();
+      return { ok:true, reason:'tick', detail: earned>0 ? ('idle +' + earned) : 'idle tick (no auto income yet)', signed, silent: earned === 0 };
+    }
+
+    if(intent.type === 'buy'){
+      const id = intent.upgradeId;
+      const u = UPGRADES[id];
+      if(!u) return { ok:false, reason:'unknown_upgrade', detail:'no such upgrade: ' + id };
+      if(!isUnlocked(id)){
+        return { ok:false, reason:'locked', detail:'rejected — ' + u.name + ' is locked until ' + UPGRADES[u.requires].name + ' is owned' };
+      }
+      const cost = upgradeCost(id);
+      if(state.coins < cost){
+        return { ok:false, reason:'insufficient_funds', detail:'tried to buy ' + u.name + ' for ' + cost + ' with only ' + state.coins };
+      }
+      state.coins -= cost;
+      state.owned[id] = (state.owned[id]||0) + 1;
+      if(u.kind === 'click') state.clickPower += u.power;
+      else state.autoRate += u.power;
+      state.actionsVerified += 1;
+      lifetimePurchases += 1;
+      const signed = await signState();
+      return { ok:true, reason:'purchase_verified', detail:'bought ' + u.name + ' for ' + cost + ', server total ' + state.coins, signed };
+    }
+
+    if(intent.type === 'sacrifice'){
+      const threshold = nextSacrificeThreshold();
+      if(threshold === null){
+        return { ok:false, reason:'sacrifice_maxed', detail:'all sacrifice tiers already claimed' };
+      }
+      if(state.coins < threshold){
+        return { ok:false, reason:'insufficient_funds', detail:'need ' + threshold.toLocaleString() + ' coins to sacrifice, have ' + state.coins.toLocaleString() };
+      }
+      sacrificeCount += 1;
+      sacrificeBoost += 0.05;
+      state = { coins:0, totalEarned:0, clickPower:1, autoRate:0, owned:{}, actionsVerified:state.actionsVerified };
+      const signed = await signState();
+      return { ok:true, reason:'sacrifice_verified', detail:'sacrificed at ' + threshold.toLocaleString() + ' coins — permanent click boost now +' + Math.round(sacrificeBoost*100) + '%', signed };
+    }
+
+    if(intent.type === 'inbound_message'){
+      // Simulates an attacker trying to inject a fake "server" message via
+      // postMessage or by calling internal-looking functions directly.
+      const { payload, sig } = intent;
+      let seqOk = typeof payload.seq === 'number' && payload.seq > lastSeq;
+      let sigOk = await verifySig(payload, sig).catch(()=>false);
+      if(!sigOk){
+        return { ok:false, reason:'signature_invalid', detail:'rejected forged state — HMAC signature does not match' };
+      }
+      if(!seqOk){
+        return { ok:false, reason:'replay_detected', detail:'rejected — sequence ' + payload.seq + ' is not newer than last accepted ' + lastSeq + ' (replay attempt)' };
+      }
+      return { ok:true, reason:'inbound_accepted', detail:'accepted external state at seq ' + payload.seq };
+    }
+
+    return { ok:false, reason:'unknown_intent', detail:'malformed request' };
+  }
+
+  function getDisplayState(){
+    const unlocked = {};
+    Object.keys(UPGRADES).forEach(id=>{ unlocked[id] = isUnlocked(id); });
+    return {
+      coins: state.coins,
+      totalEarned: state.totalEarned,
+      clickPower: state.clickPower,
+      effectiveClickPower: effectiveClickPower(),
+      autoRate: state.autoRate,
+      owned: Object.assign({}, state.owned),
+      actionsVerified: state.actionsVerified,
+      unlocked,
+      sacrificeCount,
+      sacrificeBoost,
+      nextSacrificeThreshold: nextSacrificeThreshold(),
+      lifetimeEarned,
+      lifetimeClicks,
+      lifetimePurchases,
+      sessionStartedAt,
+    };
+  }
+
+  function costOf(id){ return upgradeCost(id); }
+
+  function resetState(){
+    state = { coins:0, totalEarned:0, clickPower:1, autoRate:0, owned:{}, actionsVerified:0 };
+    sacrificeCount = 0; sacrificeBoost = 0;
+    lifetimeEarned = 0; lifetimeClicks = 0; lifetimePurchases = 0; sessionStartedAt = Date.now();
+    seq = 0; lastSeq = -1; lastActionAt = 0;
+  }
+
+  async function exportSave(){
+    // Sign the save payload the same way every other server-confirmed state
+    // is signed, so a tampered save in localStorage is caught on load exactly
+    // like a forged postMessage is caught mid-session.
+    const key = await getKey();
+    const payload = JSON.stringify({
+      coins: state.coins,
+      totalEarned: state.totalEarned,
+      clickPower: state.clickPower,
+      autoRate: state.autoRate,
+      owned: state.owned,
+      actionsVerified: state.actionsVerified,
+      sacrificeCount,
+      sacrificeBoost,
+      lifetimeEarned,
+      lifetimeClicks,
+      lifetimePurchases,
+      sessionStartedAt,
+      savedAt: Date.now(),
+    });
+    const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+    const sig = Array.from(new Uint8Array(sigBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+    return JSON.stringify({ payload: JSON.parse(payload), sig });
+  }
+
+  async function loadSave(saveStr){
+    let parsed;
+    try{ parsed = JSON.parse(saveStr); } catch(e){
+      return { ok:false, reason:'corrupt', detail:'save data is not valid JSON' };
+    }
+    const { payload, sig } = parsed || {};
+    if(!payload || !sig) return { ok:false, reason:'corrupt', detail:'save data missing payload or signature' };
+
+    const key = await getKey();
+    const recomputedPayload = JSON.stringify(payload);
+    const sigBuf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(recomputedPayload));
+    const recomputedSig = Array.from(new Uint8Array(sigBuf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,16);
+    if(recomputedSig !== sig){
+      return { ok:false, reason:'signature_invalid', detail:'save signature does not match — file may be corrupted or tampered' };
+    }
+
+    state = {
+      coins: Number(payload.coins) || 0,
+      totalEarned: Number(payload.totalEarned) || 0,
+      clickPower: Number(payload.clickPower) || 1,
+      autoRate: Number(payload.autoRate) || 0,
+      owned: payload.owned && typeof payload.owned === 'object' ? payload.owned : {},
+      actionsVerified: Number(payload.actionsVerified) || 0,
+    };
+    sacrificeCount = Number(payload.sacrificeCount) || 0;
+    sacrificeBoost = Number(payload.sacrificeBoost) || 0;
+    lifetimeEarned = Number(payload.lifetimeEarned) || 0;
+    lifetimeClicks = Number(payload.lifetimeClicks) || 0;
+    lifetimePurchases = Number(payload.lifetimePurchases) || 0;
+    sessionStartedAt = Number(payload.sessionStartedAt) || Date.now();
+    return { ok:true, reason:'save_loaded', detail:'progress restored from save' };
+  }
+
+  return { handleIntent, getDisplayState, UPGRADES, costOf, resetState, exportSave, loadSave };
+})();
+
+// Expose a deliberately attacker-shaped surface so console experiments
+// have something realistic to push against, without it being a real hole.
+window.__vaultPostMessage = function(payload, sig){
+  Server.handleIntent({ type:'inbound_message', payload, sig }).then(res=>{
+    routeServerResult(res, 'inbound');
+  });
+};
+
+// =====================================================================
+// CLIENT MODULE — UI rendering + intent dispatch only. Never holds truth.
+// =====================================================================
+const balanceEl = document.getElementById('balance');
+const rateEl = document.getElementById('rate');
+const clickPowerEl = document.getElementById('click-power');
+const totalEarnedEl = document.getElementById('total-earned');
+const coinBtn = document.getElementById('coin-btn');
+const upgradeListEl = document.getElementById('upgrade-list');
+const securityBadge = document.getElementById('security-badge');
+const securityText = document.getElementById('security-text');
+
+function flagTampered(reason){
+  securityBadge.classList.add('tampered');
+  securityText.textContent = '🚫 ' + reason;
+}
+function clearTamperFlag(){
+  securityBadge.classList.remove('tampered');
+  securityText.textContent = '✅ verified';
+}
+
+function renderFromServer(display){
+  balanceEl.textContent = display.coins.toLocaleString();
+  balanceEl.classList.remove('flash');
+  requestAnimationFrame(()=>{ balanceEl.classList.add('flash'); });
+  rateEl.textContent = '⚙️ +' + display.autoRate.toLocaleString() + '/sec idle';
+  const boostPct = Math.round(display.sacrificeBoost * 100);
+  clickPowerEl.textContent = '👆 +' + display.effectiveClickPower.toLocaleString() + ' per click' + (boostPct > 0 ? ' (🔥+' + boostPct + '%)' : '');
+  totalEarnedEl.textContent = display.totalEarned.toLocaleString();
+  renderShop(display);
+  renderSacrifice(display);
+}
+
+function renderShop(display){
+  upgradeListEl.innerHTML = '';
+  const tiers = {};
+  Object.keys(Server.UPGRADES).forEach(id=>{
+    const u = Server.UPGRADES[id];
+    (tiers[u.tier] = tiers[u.tier] || []).push(id);
+  });
+  const tierNums = Object.keys(tiers).map(Number).sort((a,b)=>a-b);
+
+  tierNums.forEach((tn, idx)=>{
+    const tierWrap = document.createElement('div');
+    tierWrap.className = 'tree-tier';
+
+    const lanes = { click:null, auto:null };
+    tiers[tn].forEach(id=>{ lanes[Server.UPGRADES[id].kind] = id; });
+
+    ['click','auto'].forEach(kind=>{
+      const id = lanes[kind];
+      if(!id){ tierWrap.appendChild(document.createElement('div')); return; }
+      const u = Server.UPGRADES[id];
+      const cost = Server.costOf(id);
+      const owned = display.owned[id] || 0;
+      const unlocked = display.unlocked[id];
+      const affordable = display.coins >= cost;
+
+      const node = document.createElement('div');
+      node.className = 'tree-node' + (unlocked ? '' : ' locked') + (kind === 'click' ? ' lane-click' : ' lane-auto');
+      node.innerHTML =
+        '<div class="node-icon">' + (unlocked ? u.icon : '🔒') + '</div>' +
+        '<div class="node-body">' +
+          '<div class="node-name">' + u.name + (owned ? ' <span class="owned-tag">×' + owned + '</span>' : '') + '</div>' +
+          '<div class="node-desc">' + (unlocked ? u.desc : 'requires ' + Server.UPGRADES[u.requires].name) + '</div>' +
+        '</div>' +
+        (unlocked ? '<button class="node-buy" data-id="' + id + '" ' + (!affordable ? 'disabled' : '') + '>' + cost.toLocaleString() + '</button>' : '');
+      tierWrap.appendChild(node);
+    });
+
+    upgradeListEl.appendChild(tierWrap);
+
+    if(idx < tierNums.length - 1){
+      const connector = document.createElement('div');
+      connector.className = 'tree-connector';
+      connector.innerHTML = '<div class="conn-line lane-click"></div><div class="conn-line lane-auto"></div>';
+      upgradeListEl.appendChild(connector);
+    }
+  });
+
+  upgradeListEl.querySelectorAll('.node-buy').forEach(btn=>{
+    btn.addEventListener('click', ()=>dispatchIntent({ type:'buy', upgradeId: btn.dataset.id }));
+  });
+}
+
+async function routeServerResult(res){
+  if(res.ok){
+    clearTamperFlag();
+    if(res.signed) renderFromServer(Server.getDisplayState());
+  } else if(res.reason === 'signature_invalid' || res.reason === 'replay_detected'){
+    flagTampered(res.reason === 'signature_invalid' ? 'forged signature blocked' : 'replay blocked');
+  }
+}
+
+async function dispatchIntent(intent){
+  const res = await Server.handleIntent(intent);
+  routeServerResult(res);
+  if(res.ok && autoSaveOn && (intent.type === 'click' || intent.type === 'buy' || intent.type === 'sacrifice')){
+    saveGame({ silent: true });
+  }
+}
+
+coinBtn.addEventListener('click', ()=>{ playClickTick(); dispatchIntent({ type:'click' }); });
+
+// Idle tick loop — client only reports elapsed time, server computes the reward
+let lastTick = performance.now();
+setInterval(()=>{
+  const now = performance.now();
+  const elapsedSec = (now - lastTick) / 1000;
+  lastTick = now;
+  Server.handleIntent({ type:'tick', elapsedSec }).then(routeServerResult);
+}, 1000);
+
+// --- masthead popovers ---
+const popTree = document.getElementById('popover-tree');
+const popSacrifice = document.getElementById('popover-sacrifice');
+const popStats = document.getElementById('popover-stats');
+const popSettings = document.getElementById('popover-settings');
+const popCredits = document.getElementById('popover-credits');
+const ALL_POPOVERS = [popTree, popSacrifice, popStats, popSettings, popCredits];
+function togglePopover(el){
+  const wasHidden = el.hidden;
+  ALL_POPOVERS.forEach(p=>p.hidden = true);
+  el.hidden = !wasHidden;
+  if(el === popStats && !el.hidden) renderStats(Server.getDisplayState());
+}
+document.getElementById('btn-tree').addEventListener('click', ()=>togglePopover(popTree));
+document.getElementById('btn-sacrifice').addEventListener('click', ()=>togglePopover(popSacrifice));
+document.getElementById('btn-stats').addEventListener('click', ()=>togglePopover(popStats));
+document.getElementById('btn-settings').addEventListener('click', ()=>togglePopover(popSettings));
+document.getElementById('btn-credits').addEventListener('click', ()=>togglePopover(popCredits));
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ ALL_POPOVERS.forEach(p=>p.hidden = true); });
+});
+
+// --- settings state ---
+let soundOn = false;
+document.getElementById('toggle-sound').addEventListener('change', e=>{ soundOn = e.target.checked; saveSettings(); });
+
+let audioCtx = null;
+function getAudioCtx(){
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playClickTick(){
+  if(!soundOn) return;
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.06, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(); osc.stop(ctx.currentTime + 0.12);
+}
+
+// --- background music: real audio tracks, one picked at random each time
+// music is turned on (or on page load if it was left on) ---
+const MUSIC_TRACKS = ['music/track1.mp3', 'music/track2.mp3', 'music/track3.mp3'];
+let musicOn = false;
+let musicVolume = 0.4;
+let musicEl = null;
+
+function startMusic(){
+  if(musicEl) return;
+  const pick = MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
+  musicEl = new Audio(pick);
+  musicEl.loop = true;
+  musicEl.volume = musicVolume;
+  musicEl.play().catch(()=>{
+    // Autoplay can be blocked until the user interacts with the page at all;
+    // the click-sound or any button press will have already counted as a
+    // gesture by the time someone toggles this on, so this mostly matters
+    // if music is restored "on" from saved settings before any interaction.
+  });
+}
+
+function stopMusic(){
+  if(!musicEl) return;
+  musicEl.pause();
+  musicEl = null;
+}
+
+function setMusicVolume(v){
+  musicVolume = v;
+  if(musicEl) musicEl.volume = musicVolume;
+}
+
+document.getElementById('toggle-music').addEventListener('change', e=>{
+  musicOn = e.target.checked;
+  if(musicOn) startMusic(); else stopMusic();
+  saveSettings();
+});
+document.getElementById('music-volume').addEventListener('input', e=>{
+  setMusicVolume(Number(e.target.value)/100);
+  saveSettings();
+});
+
+// --- confirm dialog (used for destructive actions) ---
+const confirmOverlay = document.getElementById('confirm-overlay');
+const confirmTitleEl = document.getElementById('confirm-title');
+const confirmTextEl = document.getElementById('confirm-text');
+const confirmOkBtn = document.getElementById('confirm-ok');
+const confirmCancelBtn = document.getElementById('confirm-cancel');
+let confirmResolver = null;
+
+function askConfirm(title, text){
+  confirmTitleEl.textContent = title;
+  confirmTextEl.textContent = text;
+  confirmOverlay.hidden = false;
+  return new Promise(resolve=>{ confirmResolver = resolve; });
+}
+confirmOkBtn.addEventListener('click', ()=>{ confirmOverlay.hidden = true; if(confirmResolver) confirmResolver(true); });
+confirmCancelBtn.addEventListener('click', ()=>{ confirmOverlay.hidden = true; if(confirmResolver) confirmResolver(false); });
+
+document.getElementById('btn-reset').addEventListener('click', async ()=>{
+  const ok = await askConfirm('Reset everything?', 'This wipes your coins, upgrades, sacrifice boost, stats, and save file. This cannot be undone.');
+  if(!ok) return;
+  Server.resetState();
+  clearTamperFlag();
+  renderFromServer(Server.getDisplayState());
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  setSaveStatus('ℹ️ no save found');
+  popSettings.hidden = true;
+});
+
+document.getElementById('btn-refresh').addEventListener('click', async ()=>{
+  await saveGame({ silent: true });
+  location.reload();
+});
+
+
+// --- sacrifice UI ---
+// Thresholds mirrored here purely for display/labeling; the server is the
+// only place that actually enforces or trusts them.
+const SACRIFICE_THRESHOLDS_DISPLAY = [10000, 25000, 50000, 100000, 250000];
+const sacrificeTrackEl = document.getElementById('sacrifice-track');
+const sacrificeStatusEl = document.getElementById('sacrifice-status');
+const sacrificeConfirmBtn = document.getElementById('btn-sacrifice-confirm');
+
+function renderSacrifice(display){
+  sacrificeTrackEl.innerHTML = '';
+  SACRIFICE_THRESHOLDS_DISPLAY.forEach((threshold, i)=>{
+    const node = document.createElement('div');
+    let cls = 'sac-node';
+    if(i < display.sacrificeCount) cls += ' claimed';
+    else if(i === display.sacrificeCount) cls += ' current';
+    else cls += ' locked';
+    node.className = cls;
+    node.innerHTML = '<div class="sac-cost">' + (threshold/1000) + 'K</div><div class="sac-pct">+' + ((i+1)*5) + '%</div>';
+    sacrificeTrackEl.appendChild(node);
+  });
+
+  if(display.nextSacrificeThreshold === null){
+    sacrificeStatusEl.textContent = '🏆 All sacrifices claimed — permanent boost +' + Math.round(display.sacrificeBoost*100) + '%';
+    sacrificeConfirmBtn.disabled = true;
+    sacrificeConfirmBtn.textContent = 'Maxed out';
+  } else {
+    const have = display.coins;
+    const need = display.nextSacrificeThreshold;
+    sacrificeStatusEl.textContent = '💰 ' + have.toLocaleString() + ' / ' + need.toLocaleString() + ' coins — current boost +' + Math.round(display.sacrificeBoost*100) + '%';
+    sacrificeConfirmBtn.disabled = have < need;
+    sacrificeConfirmBtn.textContent = have < need ? 'Need ' + (need - have).toLocaleString() + ' more' : 'Sacrifice for +5%';
+  }
+}
+
+sacrificeConfirmBtn.addEventListener('click', ()=>dispatchIntent({ type:'sacrifice' }));
+
+// --- save / load ---
+const SAVE_KEY = 'coinVaultSave_v1';
+const PREFS_KEY = 'coinVaultPrefs_v1';
+let autoSaveOn = true;
+const saveStatusEl = document.getElementById('save-status');
+
+function setSaveStatus(text){
+  if(saveStatusEl) saveStatusEl.textContent = text;
+}
+
+async function saveGame({ silent } = {}){
+  try{
+    const saveStr = await Server.exportSave();
+    localStorage.setItem(SAVE_KEY, saveStr);
+    setSaveStatus(silent ? '💾 auto-saved just now' : '💾 saved!');
+  } catch(e){
+    setSaveStatus('⚠️ save failed');
+  }
+}
+
+async function loadGame({ silent } = {}){
+  let raw;
+  try{ raw = localStorage.getItem(SAVE_KEY); } catch(e){ raw = null; }
+  if(!raw){
+    if(!silent) setSaveStatus('ℹ️ no save found');
+    return;
+  }
+  const res = await Server.loadSave(raw);
+  if(res.ok){
+    renderFromServer(Server.getDisplayState());
+    setSaveStatus('💾 loaded save');
+  } else {
+    flagTampered(res.reason === 'signature_invalid' ? 'save signature invalid' : 'save corrupted');
+    setSaveStatus('⚠️ ' + res.detail);
+  }
+}
+
+// Plain (unsigned) UI preferences — sound/music/autosave toggles. These never
+// affect game balance, so they don't need the same integrity guarantee coins do.
+function saveSettings(){
+  try{
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ soundOn, musicOn, musicVolume, autoSaveOn }));
+  } catch(e){}
+}
+function loadSettings(){
+  let raw;
+  try{ raw = localStorage.getItem(PREFS_KEY); } catch(e){ raw = null; }
+  if(!raw) return;
+  let prefs;
+  try{ prefs = JSON.parse(raw); } catch(e){ return; }
+  soundOn = !!prefs.soundOn;
+  musicOn = !!prefs.musicOn;
+  musicVolume = typeof prefs.musicVolume === 'number' ? prefs.musicVolume : 0.4;
+  autoSaveOn = prefs.autoSaveOn !== false;
+
+  document.getElementById('toggle-sound').checked = soundOn;
+  document.getElementById('toggle-music').checked = musicOn;
+  document.getElementById('music-volume').value = Math.round(musicVolume*100);
+  document.getElementById('toggle-autosave').checked = autoSaveOn;
+  if(musicOn) startMusic();
+}
+
+document.getElementById('toggle-autosave').addEventListener('change', e=>{
+  autoSaveOn = e.target.checked;
+  saveSettings();
+});
+document.getElementById('btn-save-now').addEventListener('click', ()=>saveGame({ silent:false }));
+
+// Background auto-save loop — separate from the per-action save in
+// dispatchIntent, this is a safety net in case the tab is just left idling
+// on auto-income with no clicks/purchases happening.
+setInterval(()=>{
+  if(autoSaveOn) saveGame({ silent: true });
+}, 10000);
+
+window.addEventListener('beforeunload', ()=>{
+  if(autoSaveOn){
+    // Best-effort synchronous-ish save on tab close; exportSave is async
+    // (uses Web Crypto) so this can't be perfectly guaranteed to finish,
+    // but the periodic + per-action saves mean it's rarely the only save.
+    saveGame({ silent: true });
+  }
+});
+
+// --- stats popover ---
+const statsGridEl = document.getElementById('stats-grid');
+function formatDuration(ms){
+  const sec = Math.floor(ms/1000);
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  if(h > 0) return h + 'h ' + m + 'm';
+  if(m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+function renderStats(display){
+  const cards = [
+    ['💰 Lifetime coins earned', display.lifetimeEarned.toLocaleString()],
+    ['👆 Total clicks', display.lifetimeClicks.toLocaleString()],
+    ['🛒 Upgrades purchased', display.lifetimePurchases.toLocaleString()],
+    ['🔥 Sacrifices made', display.sacrificeCount + ' / 5'],
+    ['✨ Permanent boost', '+' + Math.round(display.sacrificeBoost*100) + '%'],
+    ['⏱️ Session length', formatDuration(Date.now() - display.sessionStartedAt)],
+    ['🪙 Current coins', display.coins.toLocaleString()],
+    ['🔐 Actions verified', display.actionsVerified.toLocaleString()],
+  ];
+  statsGridEl.innerHTML = cards.map(([label, value])=>
+    '<div class="stat-card"><div class="stat-card-label">' + label + '</div><div class="stat-card-value">' + value + '</div></div>'
+  ).join('');
+}
+
+// Initial render — load preferences, then try to restore a save, then render
+loadSettings();
+loadGame({ silent: true }).then(()=>{
+  renderFromServer(Server.getDisplayState());
+});
+
+})();
+</script>
+</body>
+</html>
